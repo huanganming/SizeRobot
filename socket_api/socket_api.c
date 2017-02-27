@@ -1,5 +1,5 @@
 /***********************************************************
-**  File : Socket_TCP_API.C
+**  File : Socket_API.C
 **	Description : 用于创建TCP的API接口
 **	Bug Report : huang_anming@126.com
 **	Welcome to Qin Chi World !
@@ -19,19 +19,9 @@
 #include <fcntl.h>
 #include <sys/shm.h>
 /** 自定义头文件 **/
-#include <Socket_TCP_API.H>
-#include <list.h>
+#include "socket_api.h"
 
-#define IP_ADDRESS_MAX_LEN 16
-
-struct SOCKET_TCP_ST{
-	int socket_fd;			// socket对象
-    int port;				// 通信端口
-	char ip_addr[IP_ADDRESS_MAX_LEN];	// 通信地址
-	struct list_head list;	// 双向链表
-};
-
-typedef enum SOCKET_TCP_SATUS{
+typedef enum SOCKET_SATUS{
     ST_SUCCESS,
 	ST_FAILED_BY_PORT,
 	ST_FAILED_BY_ADDR,
@@ -42,20 +32,18 @@ typedef enum SOCKET_TCP_SATUS{
 /**
 ** 客户端 创建多对象客户端，客户端使用链表进行管理
 **/
-
-#define SOCKET_TCP_INIT(name) do {	\
-    name = (struct SOCKET_TCP_ST *)malloc(sizeof(struct SOCKET_TCP_ST));	\
-    name->socket_fd = -1;	\
+#define SOCKET_INIT(name) do {	\
+    name = (struct SOCKET_ST *)malloc(sizeof(struct SOCKET_ST));	\
+    name->fd = -1;	\
     name->port = -1;		\
     memset(name->ip_addr, 0, IP_ADDRESS_MAX_LEN);						\
 }while(0);
-
 /*
-*
+* 创建一个客户端对象链表，用于管理
 */
-struct SOCKET_TCP_ST *g_tcp_client == NULL;
+struct list_head *g_client_list;
 
-int socket_tcp_init(struct SOCKET_TCP_ST *new)
+int client_list_init(void)
 {
 	// 检查客户端结构是否存在
 	if (NULL == g_tcp_client)
@@ -69,7 +57,7 @@ int socket_tcp_init(struct SOCKET_TCP_ST *new)
 	return 0;
 }
 
-int socket_tcp_deinit(void)
+int client_list_deinit(void)
 {
 	// 检查客户端结构是否存在
 	if (NULL == g_tcp_client)
@@ -79,12 +67,22 @@ int socket_tcp_deinit(void)
 	}
 }
 
-int socket_tcp_disconnect(struct SOCKET_TCP_ST *client)
+/*
+* 客户端链接关闭
+* client 客户对象
+* 返回是否关闭客户端 0-表示成功
+*/
+int socket_disconnect(struct SOCKET_ST *client)
 {
 	return close(client->fd);
 }
 
-int socket_tcp_connect(struct SOCKET_TCP_ST *client)
+/*
+* 客户端链接开启
+* client 链接的服务器对象参数
+* 返回 是否成功链接到服务器，0-成功
+*/
+int socket_connect(struct SOCKET_ST *client)
 {
 	struct sockaddr_in addr;
 	
@@ -96,7 +94,8 @@ int socket_tcp_connect(struct SOCKET_TCP_ST *client)
 	}
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(client->port);
-	if (inet_aton(client->ip_addr, &addr.sin_addr.s_addr) == 0)
+	if (inet_aton(client->ip_addr, &addr.sin_addr) == 0)
+	//if (inet_aton(client->ip_addr, &addr.sin_addr.s_addr) == 0)
 	{
 		perror("ip address error:");
 		close(client->fd);
@@ -112,18 +111,32 @@ int socket_tcp_connect(struct SOCKET_TCP_ST *client)
 	return 0;
 }
 
-int socket_tcp_send(struct SOCKET_TCP_ST *client, char *buf, int buf_len)
+/*
+* 发送数据
+* client 客户端信息
+* buf 发送的数据
+* buf_len 发送的数据长度
+* 返回 发送的数据个数，-1表示发送失败
+*/
+int socket_send(struct SOCKET_ST *client, char *buf, int buf_len)
 {
-	if (client->fd > 0)
+	if (client->fd < 0)
 	{
 		return -1;
 	}
-	return send(client->fd, buf, buf_len);
+	return send(client->fd, buf, buf_len, 0);
 }
 
-int socket_tcp_recv(struct SOCKET_TCP_ST *client, char *buf, int buf_len)
+/*
+* 接收数据
+* client 客户端信息
+* buf 接收数据空间
+* buf_len 能够接收的数据长度
+* 返回 接收到的数据个数， -1表示接收失败
+*/
+int socket_recv(struct SOCKET_TCP_ST *client, char *buf, int buf_len)
 {
-	if (client->fd > 0)
+	if (client->fd < 0)
 	{
 		return -1;
 	}

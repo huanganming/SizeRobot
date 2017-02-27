@@ -5,13 +5,8 @@
 **	Welcome to Qin Chi World !
 ***********************************************************/
 
-#if 0	//原始定义
-    #ifndef __TOOLS_LINUX_LIST_H
-    #define __TOOLS_LINUX_LIST_H
-#else	// 修改定义，防止与系统的头文件定义冲突
-    #ifndef TOOLS_LINUX_LIST_H
-    #define TOOLS_LINUX_LIST_H
-#endif
+#ifndef TOOLS_LINUX_LIST_H
+#define TOOLS_LINUX_LIST_H
 
 #ifndef offsetof
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
@@ -29,6 +24,10 @@
 	const typeof(((type *)0)->member) * __mptr = (ptr);	\
 	(type *)((char *)__mptr - offsetof(type, member)); })
 #endif
+
+#define WRITE_ONCE(to, from) ((to)=(from))
+#define LIST_POISON1 (void *)0x100
+#define LIST_POISON2 (void *)0x200
 
 
 /*
@@ -709,7 +708,7 @@ static inline void hlist_add_fake(struct hlist_node *n)
 	n->pprev = &n->next;
 }
 
-static inline bool hlist_fake(struct hlist_node *h)
+static inline int hlist_fake(struct hlist_node *h)
 {
 	return h->pprev == &h->next;
 }
